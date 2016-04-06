@@ -1,29 +1,36 @@
 import cv2
-import numpy as numpy
+import math
+import numpy as np
 
-img = cv2.imread('testimg.jpg', 0)
+d_red = cv2.cv.RGB(150, 55, 65)
+l_red = cv2.cv.RGB(250, 200, 200)
 
-ret,th1 = cv2.threshold(img,127,255,cv2.THRESH_BINARY)
-th2 = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
-            cv2.THRESH_BINARY,11,2)
+orig = cv2.imread("circles.png")
+img = orig.copy()
+img2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+cv2.imwrite("blackwhite.jpg", img2)
+detector = cv2.FeatureDetector_create('MSER')
+fs = detector.detect(img2)
+fs.sort(key = lambda x: -x.size)
 
-blur = cv2.GaussianBlur(img,(5,5),0)
-ret3,th4 = cv2.threshold(blur,10,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-th3 = cv2.adaptiveThreshold(th4,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
-            cv2.THRESH_BINARY,11,2)
-cv2.imwrite("th1.jpg", th1)
-cv2.imwrite("th2.jpg", th2)
-cv2.imwrite("th3.jpg", th3)
-cv2.imwrite("th4.jpg", blur)
+def supress(x):
+        for f in fs:
+                distx = f.pt[0] - x.pt[0]
+                disty = f.pt[1] - x.pt[1]
+                dist = math.sqrt(distx*distx + disty*disty)
+                if (f.size > x.size) and (dist<f.size/2):
+                        return True
 
+sfs = [x for x in fs if not supress(x)]
 
+for f in sfs:
+        cv2.circle(img, (int(f.pt[0]), int(f.pt[1])), int(f.size/2), d_red, 2, cv2.CV_AA)
+        cv2.circle(img, (int(f.pt[0]), int(f.pt[1])), int(f.size/2), l_red, 1, cv2.CV_AA)
 
-# titles = ['Original Image', 'Global Thresholding (v = 127)',
-#             'Adaptive Mean Thresholding', 'Adaptive Gaussian Thresholding']
-# images = [img, th1, th2, th3]
+h, w = orig.shape[:2]
+vis = np.zeros((h, w*2+5), np.uint8)
+vis = cv2.cvtColor(vis, cv2.COLOR_GRAY2BGR)
+vis[:h, :w] = orig
+vis[:h, w+5:w*2+5] = img
 
-# for i in xrange(4):
-#     plt.subplot(2,2,i+1),plt.imshow(images[i],'gray')
-#     plt.title(titles[i])
-#     plt.xticks([]),plt.yticks([])
-# plt.show()
+cv2.imwrite("c_o.jpg", vis)
